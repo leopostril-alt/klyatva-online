@@ -124,7 +124,7 @@ const socket = io();
 let pub = null;   // останній публічний стан кімнати
 let priv = null;  // останній приватний стан МЕНЕ
 let session = JSON.parse(localStorage.getItem('klyatvaSession') || 'null');
-let uiScreen = 'start'; // start | prologue | rules | createJoin
+let uiScreen = 'start'; // start | prologue | rules | createJoin | create | join
 let joinError = '';
 
 function saveSession(s){ session = s; localStorage.setItem('klyatvaSession', JSON.stringify(s)); }
@@ -313,19 +313,35 @@ function renderRules(){
 function renderCreateJoin(){
   screen(`
     <h2>Створити або приєднатись</h2>
+    ${witnessQuoteHtml('Одні кличуть інших до себе. Інші приходять на поклик. Обери свій шлях.')}
+    <button class="act primary" onclick="joinError=''; uiScreen='create'; render();">➕ Створити нову кімнату</button>
+    <button class="act primary" onclick="joinError=''; uiScreen='join'; render();">🔑 Приєднатись за кодом</button>
+    <button class="act" onclick="uiScreen='rules'; render();">← Правила гри</button>
+  `);
+}
+function renderCreateRoom(){
+  screen(`
+    <h2>Створити нову кімнату</h2>
     <div class="card">
-      <h3 style="margin-top:0;">Створити нову кімнату</h3>
+      <p class="muted">Ти станеш хостом: отримаєш код кімнати, поділишся ним з іншими, і керуватимеш початком гри.</p>
       <input class="textIn" id="createNameIn" placeholder="Твоє ім'я" maxlength="24">
       <button class="act primary" onclick="doCreate()">Створити кімнату</button>
     </div>
+    ${joinError? `<p class="muted" style="color:var(--danger);">${esc(joinError)}</p>` : ''}
+    <button class="act" onclick="joinError=''; uiScreen='createJoin'; render();">← Назад</button>
+  `);
+}
+function renderJoinRoom(){
+  screen(`
+    <h2>Приєднатись за кодом</h2>
     <div class="card">
-      <h3 style="margin-top:0;">Приєднатись за кодом</h3>
+      <p class="muted">Попроси код кімнати у того, хто її створив, і введи його нижче.</p>
       <input class="textIn" id="joinCodeIn" placeholder="Код кімнати (напр. ABCD)" maxlength="4" style="text-transform:uppercase;">
       <input class="textIn" id="joinNameIn" placeholder="Твоє ім'я" maxlength="24">
       <button class="act primary" onclick="doJoin()">Приєднатись</button>
     </div>
     ${joinError? `<p class="muted" style="color:var(--danger);">${esc(joinError)}</p>` : ''}
-    <button class="act" onclick="uiScreen='rules'; render();">← Правила гри</button>
+    <button class="act" onclick="joinError=''; uiScreen='createJoin'; render();">← Назад</button>
   `);
 }
 function doCreate(){
@@ -361,6 +377,8 @@ function renderLobby(){
   document.getElementById('treeStateLabel').textContent = 'Дерево Клятви спить';
   document.getElementById('treeWrap').innerHTML = renderTree(50,44);
   const isHost = priv && priv.isHost;
+  const needMore = !pub.regTimerEnd && pub.players.length < 4;
+  const stillNeed = Math.max(0, 4-pub.players.length);
   screen(`
     <h2>Кімната ${pub.code}</h2>
     <div class="card" style="text-align:center;">
@@ -368,10 +386,11 @@ function renderLobby(){
       <div class="roomCode">${pub.code}</div>
     </div>
     ${pub.regTimerEnd ? `<div class="card" style="text-align:center;"><span class="muted">До старту лишилось:</span> <b id="regTimerVal" style="font-family:'Cinzel',serif;color:var(--gold);font-size:20px;margin-left:6px;">${formatRegTimer()}</b></div>` : ''}
+    ${needMore ? `<div class="card" style="text-align:center;border-color:var(--gold-dim);"><b style="color:var(--gold);">Час на реєстрацію вичерпано.</b><p class="muted" style="margin:6px 0 0;">Гравців ще замало для старту — потрібно щонайменше 4, зараз ${pub.players.length} (не вистачає ${stillNeed}). Кімната лишається відкритою: поділись кодом <b style="color:var(--gold);">${pub.code}</b>, і щойно приєднається достатньо людей, ${isHost?'зможеш почати гру кнопкою нижче.':'хост зможе почати гру.'}</p></div>` : ''}
     ${sectionTtl('Хто вже тут')}
     <div class="card">${pub.players.map(p=>`<div class="playerRow"><span class="sigilRow">${neutralRune(p.name)}<span>${esc(p.name)}${!p.connected?' <span class="muted">(офлайн)</span>':''}${p.id===pub.hostPlayerId?' <span class="muted">· хост</span>':''}</span></span>${(isHost && p.id!==priv.id)?`<button class="act small danger" onclick="removePlayer('${p.id}')">✕</button>`:''}</div>`).join('') || '<span class="muted">Ще нікого немає.</span>'}</div>
     <p class="muted">Мінімум 4 гравці. ${isHost? 'Ти — хост цієї кімнати.' : 'Очікуємо, поки хост почне гру (або мине таймер).'}</p>
-    ${isHost? `<button class="act primary" onclick="socket.emit('hostStartNow')">Почати зараз (${pub.players.length} гравців)</button>` : ''}
+    ${isHost? `<button class="act primary" ${pub.players.length<4?'disabled':''} onclick="socket.emit('hostStartNow')">${pub.players.length<4?`Потрібно ще ${stillNeed} гравців`:`Почати зараз (${pub.players.length} гравців)`}</button>` : ''}
   `);
 }
 function removePlayer(id){ socket.emit('removePlayer', {targetId:id}); }
@@ -622,6 +641,8 @@ function render(){
     if(uiScreen==='start') return renderStart();
     if(uiScreen==='rules') return renderRules();
     if(uiScreen==='createJoin') return renderCreateJoin();
+    if(uiScreen==='create') return renderCreateRoom();
+    if(uiScreen==='join') return renderJoinRoom();
     return renderStart();
   }
   document.getElementById('topBar').style.display='block';
