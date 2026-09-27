@@ -133,7 +133,7 @@ const socket = io();
 let pub = null;   // останній публічний стан кімнати
 let priv = null;  // останній приватний стан МЕНЕ
 let session = JSON.parse(localStorage.getItem('klyatvaSession') || 'null');
-let uiScreen = 'start'; // start | prologue | rules | createJoin | create | join
+let uiScreen = 'start'; // start | prologue | rules | createJoin
 let joinError = '';
 
 function saveSession(s){ session = s; localStorage.setItem('klyatvaSession', JSON.stringify(s)); }
@@ -322,14 +322,14 @@ function renderRules(){
     ${sectionTtl('Хід раунду — онлайн')}
     <div class="card">
       <p>1. <b>Публічна фаза</b> — обговорюйте вголос на своєму дзвінку (Discord/Zoom тощо), дивлячись у спільний стан гри на екрані.<br>
-      2. <b>Таємна фаза</b> — кожен на своєму пристрої наодинці обирає: чесно віддати Слово чи взяти собі. Гра сама рухається далі, щойно всі підтвердили.<br>
+      2. <b>Таємна фаза</b> — кожен на своєму пристрої наодинці голосує: за Гармонію чи за Безлад. Гра сама рухається далі, щойно всі підтвердили.<br>
       3. <b>Розкриття</b> — Дерево Рівноваги реагує на всі вибори разом.<br>
       4. Час від часу — <b>Суд Клятви</b>: усі голосують зі своїх пристроїв, кого вигнати.</p>
     </div>
     ${sectionTtl('Як рахується Рівновага')}
-    <div class="card"><p>Рівновага — це шкала від 0% (Безлад) до 100% (Ідеал), яку видно смужкою вгорі екрана. Щоразу, коли гравець чесно віддає Слово — шкала трохи росте; коли хтось бере Слово собі — трохи падає, а якщо Жаротворці це викриють прилюдно — падає ще сильніше. Здібності Каст, предмети з Крамниці та випадкові Примхи Безладу теж можуть зсунути шкалу в той чи інший бік.</p></div>
+    <div class="card"><p>Рівновага — це шкала від 0% (Безлад) до 100% (Гармонія), яку видно смужкою вгорі екрана. Щоразу, коли гравець голосує за Гармонію — шкала трохи росте; коли хтось голосує за Безлад — трохи падає, а якщо Жаротворці це викриють прилюдно — падає ще сильніше. Здібності Каст, предмети з Крамниці та випадкові Примхи Безладу теж можуть зсунути шкалу в той чи інший бік.</p></div>
     ${sectionTtl('Що таке Борг Безладу')}
-    <div class="card"><p>На початку кожного раунду Борг Безладу непомітно й випадково падає на когось із гравців (невеликий шанс окремо для кожного, а іноді ще на когось — через випадкову Примху Безладу). Дізнаєшся про це лише коли почнеться твоя таємна фаза. Якщо Борг упав на тебе — цього раунду вибору немає: Слово автоматично піде тобі (нечесно), хай що ти хотів(ла) би обрати. Це завжди тягне Рівновагу до Безладу і робить тебе вразливим(ою) до викриття Жаротворцями.</p></div>
+    <div class="card"><p>На початку кожного раунду Борг Безладу непомітно й випадково падає на когось із гравців (невеликий шанс окремо для кожного, а іноді ще на когось — через випадкову Примху Безладу). Дізнаєшся про це лише коли почнеться твоя таємна фаза. Якщо Борг упав на тебе — цього раунду вибору немає: твій голос автоматично йде за Безлад, хай що ти хотів(ла) би обрати. Це завжди тягне Рівновагу до Безладу і робить тебе вразливим(ою) до викриття Жаротворцями. Оскільки Борг падає випадково й не залежить від того, Вірний ти чи Розв'язаний, він навмисно заплутує розслідування — не поспішай підозрювати того, хто цього разу «зрадив».</p></div>
     ${sectionTtl('Жетони й Крамниця')}
     <div class="card"><p>За гру накопичуються Жетони — за них у Крамниці можна купити Удар Розбрату, Кайдани Мовчання, Наклеп або одноразовий Подих Клятви (+3 до Рівноваги).</p></div>
     ${sectionTtl('Перемога')}
@@ -483,7 +483,7 @@ function renderSecret(){
     screen(`
       ${phoneHeader()}
       <div class="sigilBig">${fullSigil(priv.name, priv.caste, 72)}</div>
-      <div class="card"><p>Слово підтверджено. Очікуємо на решту.</p></div>
+      <div class="card"><p>Голос підтверджено. Очікуємо на решту.</p></div>
       ${sectionTtl('Хто вже готовий')}
       <div class="card">${pub.players.filter(p=>p.alive).map(p=>`<div class="playerRow"><span class="sigilRow">${neutralRune(p.name)}<span>${esc(p.name)}</span></span><span class="${pub.decidedIds.includes(p.id)?'decidedTag':'waitTag'}">${pub.decidedIds.includes(p.id)?'✓ готово':'очікуємо…'}</span></div>`).join('')}</div>
     `);
@@ -500,10 +500,10 @@ function renderSecret(){
       ${priv.abilityDisabled?'<p class="muted" style="color:var(--danger);">Цього раунду здібність недоступна (Примха Безладу).</p>':''}
     </div>
     ${priv.casteAllies.length? `<p class="muted">Твої Сородичі (${priv.casteName}): ${priv.casteAllies.map(n=>`<span class="allyChip">${esc(n)}</span>`).join('')}</p>` : ''}
-    <h3>Що ти РЕАЛЬНО зробиш цього разу (тільки ти це бачиш)?</h3>
+    <h3>За що ти голосуєш цього разу (тільки ти це бачиш)?</h3>
     ${priv.isDebt
-      ? `<div class="card" style="border-color:var(--danger);background:rgba(224,85,79,.08);"><p style="margin:0;">🔒 <b>Борг Безладу</b> впав на тебе цього раунду: Безлад забирає твою волю, і Слово автоматично йде тобі. Вибору немає — так діє випадкове прокляття гри.</p></div><input type="hidden" id="realSel" value="take">`
-      : `<select class="formIn" id="realSel"><option value="give">Віддати чесно</option><option value="take">Взяти собі</option></select>`}
+      ? `<div class="card" style="border-color:var(--danger);background:rgba(224,85,79,.08);"><p style="margin:0;">🔒 <b>Борг Безладу</b> впав на тебе цього раунду: Безлад забирає твою волю, і твій голос автоматично йде за Безлад. Вибору немає — так діє випадкове прокляття гри.</p></div><input type="hidden" id="realSel" value="take">`
+      : `<select class="formIn" id="realSel"><option value="give">За Гармонію</option><option value="take">За Безлад</option></select>`}
     ${!priv.abilityDisabled ? `<h3>Застосувати «${priv.ability}» на кого?</h3><select class="formIn" id="abilitySel"><option value="">— не використовувати —</option>${others.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('')}</select>` : ''}
     ${priv.inventory.shield>0? `<h3>🛡 Щит Клятви (маєш ${priv.inventory.shield})</h3><select class="formIn" id="shieldSel"><option value="no">Не використовувати</option><option value="yes">Використати на себе цього раунду</option></select>`:''}
     ${priv.inventory.strike>0? `<h3>⚔ Удар Розбрату (маєш ${priv.inventory.strike})</h3><select class="formIn" id="strikeSel"><option value="">Не використовувати</option>${others.map(o=>`<option value="${o.id}">Спалити Слово: ${esc(o.name)}</option>`).join('')}</select>`:''}
@@ -511,7 +511,7 @@ function renderSecret(){
     ${priv.inventory.slander>0? `<h3>🕸 Наклеп (маєш ${priv.inventory.slander})</h3><select class="formIn" id="slanderSel"><option value="">Не використовувати</option>${others.map(o=>`<option value="${o.id}">Виставити викритим: ${esc(o.name)}</option>`).join('')}</select>`:''}
     ${priv.inventory.breath>0? `<h3>🕊 Подих Клятви (маєш ${priv.inventory.breath})</h3><select class="formIn" id="breathSel"><option value="no">Не використовувати</option><option value="yes">Вкласти Подих у Рівновагу цього раунду</option></select>`:''}
     ${priv.canRecruit && priv.recruitTargets.length ? `<h3>Покликати у Тінь (таємно)</h3><p class="muted" style="margin-top:-4px;">Можеш таємно запропонувати комусь приєднатися до Розв'язаних.</p><select class="formIn" id="inviteSel"><option value="">— не кликати цього разу —</option>${priv.recruitTargets.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('')}</select>` : ''}
-    <button class="act primary" onclick="confirmAction()">Підтвердити Слово</button>
+    <button class="act primary" onclick="confirmAction()">Підтвердити голос</button>
   `);
 }
 function confirmAction(){
@@ -549,11 +549,11 @@ function renderReveal(){
       <p style="margin:10px 0 0;"><span class="tokenPill" style="${deltaTone}">${pub.lastDelta>0?`Рівновага зросла на ${pub.lastDelta}`:pub.lastDelta<0?`Рівновага впала на ${Math.abs(pub.lastDelta)}`:'Рівновага не змінилася'}</span></p>
     </div>
     ${priv.myResults.length? `<div class="card">${priv.myResults.map(r=>`<p class="muted">${esc(r)}</p>`).join('')}</div>` : ''}
-    ${priv.struckThisRound? `<div class="card"><p class="exposedRow">⚔ Твоє Слово цього раунду спалено Ударом Розбрату — не зараховано нічого.</p></div>` : ''}
-    ${priv.exposedThisRound? `<div class="card exposedCard"><p class="exposedRow">Тебе викрили — Жаротворці розпалили правду: ти взяв(ла) Слово собі! −1 Жетон.</p></div>`:''}
-    ${pub.struckThisRound.length? `<div class="card">${pub.struckThisRound.map(id=>`<div class="exposedRow">⚔ ${esc(pub.players.find(p=>p.id===id).name)} — Слово спалено Ударом Розбрату.</div>`).join('')}</div>`:''}
-    ${hasExposure? `<div class="card exposedCard"><p class="witnessQuote" style="margin:0 0 8px;">${esc(pub.witness.exposure||'')}</p>${pub.exposedThisRound.map(id=>`<div class="exposedRow"><svg class="flameIcon" viewBox="0 0 24 24"><path d="M12 2.5c1.2 4-2.6 5.3-2.6 9.2a2.6 2.6 0 0 0 5.2 0c0-1.7-.9-2.6-.9-4.3 1.8 1 2.8 3.4 2.8 5.2A4.5 4.5 0 0 1 7.5 12.6c0-4.4 2.7-5.7 4.5-10.1z" fill="var(--fire)"/></svg>${esc(pub.players.find(p=>p.id===id).name)} узяв(ла) Слово собі — Жаротворці розкрили це прилюдно!</div>`).join('')}</div>` : ''}
-    ${pub.debtPlayers.length? `<p class="muted">Борг Безладу торкнувся: ${pub.debtPlayers.map(id=>esc(pub.players.find(p=>p.id===id).name)).join(', ')}.</p>` : ''}
+    ${priv.struckThisRound? `<div class="card"><p class="exposedRow">⚔ Твій голос цього раунду спалено Ударом Розбрату — не зараховано нічого.</p></div>` : ''}
+    ${priv.exposedThisRound? `<div class="card exposedCard"><p class="exposedRow">Тебе викрили — Жаротворці розпалили правду: твій голос був за Безлад! −1 Жетон.</p></div>`:''}
+    ${pub.struckThisRound.length? `<div class="card">${pub.struckThisRound.map(id=>`<div class="exposedRow">⚔ ${esc(pub.players.find(p=>p.id===id).name)} — голос спалено Ударом Розбрату.</div>`).join('')}</div>`:''}
+    ${hasExposure? `<div class="card exposedCard"><p class="witnessQuote" style="margin:0 0 8px;">${esc(pub.witness.exposure||'')}</p>${pub.exposedThisRound.map(id=>`<div class="exposedRow"><svg class="flameIcon" viewBox="0 0 24 24"><path d="M12 2.5c1.2 4-2.6 5.3-2.6 9.2a2.6 2.6 0 0 0 5.2 0c0-1.7-.9-2.6-.9-4.3 1.8 1 2.8 3.4 2.8 5.2A4.5 4.5 0 0 1 7.5 12.6c0-4.4 2.7-5.7 4.5-10.1z" fill="var(--fire)"/></svg>${esc(pub.players.find(p=>p.id===id).name)} проголосував(ла) за Безлад — Жаротворці розкрили це прилюдно!</div>`).join('')}</div>` : ''}
+    ${pub.debtPlayers.length? `<div class="card" style="border-style:dashed;"><p class="muted" style="margin:0;">Дехто цього раунду не мав вибору — Борг Безладу забрав волю в: <b style="color:var(--text);">${pub.debtPlayers.map(id=>esc(pub.players.find(p=>p.id===id).name)).join(', ')}</b>. Слід зради — чи просто примха Хаосу? Вирішувати вам.</p></div>` : ''}
     ${isHost? `<button class="act primary" onclick="socket.emit('proceedAfterReveal')">Далі →</button>` : `<p class="muted" style="text-align:center;">${hostName()} переходить далі…</p>`}
   `);
 }
