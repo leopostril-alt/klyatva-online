@@ -30,6 +30,15 @@
   #roundLabel{font-family:'Cinzel',serif;font-size:12.5px;color:var(--gold);letter-spacing:.03em;}
   #resBar{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;color:var(--text-dim);}
   #resBar b{color:var(--gold);}
+  .treeStage{position:relative;display:inline-block;line-height:0;}
+  .treeStage svg{position:relative;z-index:1;display:block;}
+  .treeAura{position:absolute;top:50%;left:50%;width:var(--aura-size);height:var(--aura-size);transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;z-index:0;background:radial-gradient(circle, var(--glow) 0%, transparent 68%);filter:blur(var(--aura-blur));animation:treeAuraPulse 4.2s ease-in-out infinite;}
+  .treeStageBig::before{content:'';position:absolute;top:50%;left:50%;width:calc(var(--aura-size)*0.7);height:calc(var(--aura-size)*0.7);transform:translate(-50%,-50%);border-radius:50%;border:1px dashed var(--gold-dim);opacity:.3;animation:sigSpin 42s linear infinite;pointer-events:none;z-index:0;}
+  @keyframes treeAuraPulse{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1);}50%{opacity:.95;transform:translate(-50%,-50%) scale(1.16);}}
+  .balanceBar{flex:1;display:flex;align-items:center;gap:8px;min-width:0;}
+  .balanceTrack{position:relative;flex:1;height:7px;border-radius:5px;background:linear-gradient(90deg,#5a2222 0%,#8a7248 45%,#b98f4a 65%,#f0c674 100%);}
+  .balanceMarker{position:absolute;top:50%;width:3px;height:14px;background:#fff;border-radius:2px;transform:translate(-50%,-50%);box-shadow:0 0 6px rgba(255,255,255,.85);transition:left .6s ease;}
+  .balanceReadout{font-family:'Cinzel',serif;font-size:11.5px;color:var(--gold);white-space:nowrap;flex:none;}
   @keyframes badgeDot{0%,100%{opacity:.55;}50%{opacity:1;}}
   .phaseBadge{display:inline-flex;align-items:center;gap:6px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 11px;border-radius:20px;border:1px solid var(--gold-dim);color:var(--gold);background:rgba(240,198,116,.1);margin-bottom:8px;}
   .phaseBadge .dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:badgeDot 1.8s ease-in-out infinite;}
@@ -199,7 +208,7 @@ function renderTree(meter, size){
   for(let i=0;i<blotchCount;i++){ const [bx,by]=blotchSpots[i%blotchSpots.length]; const op=(0.35+0.4*chaosIntensity).toFixed(2); blotchesHtml+=`<ellipse cx="${bx}" cy="${by}" rx="${9+i*1.2}" ry="${7+i}" fill="rgba(9,3,5,.88)" opacity="${op}"/>`; }
   let raysHtml='';
   if(idealIntensity>0.03){ const rays=[]; for(let i=0;i<8;i++){ const ang=i*45*Math.PI/180; const x2=50+Math.cos(ang)*46, y2=50+Math.sin(ang)*46; rays.push(`<line x1="50" y1="50" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="rgba(240,198,116,${(0.3+idealIntensity*0.6).toFixed(2)})" stroke-width="1.6" stroke-linecap="round"/>`); } raysHtml=`<g opacity="${idealIntensity.toFixed(2)}">${rays.join('')}</g>`; }
-  return `<svg width="${size}" height="${size*1.14}" viewBox="0 0 100 120">
+  const svgMarkup = `<svg width="${size}" height="${size*1.14}" viewBox="0 0 100 120">
     ${raysHtml}
     <circle cx="50" cy="46" r="30" fill="${glowColor}" opacity=".5"/>
     <path d="M50,118 C48,100 47,90 44,80 C40,84 34,86 28,84 C34,80 38,74 40,66 C33,68 26,66 22,60 C30,60 36,56 39,49 M50,118 C52,100 53,90 56,80 C60,84 66,86 72,84 C66,80 62,74 60,66 C67,68 74,66 78,60 C70,60 64,56 61,49" stroke="#2a2119" stroke-width="2" fill="none" stroke-linecap="round" opacity=".85"/>
@@ -212,6 +221,20 @@ function renderTree(meter, size){
     <circle cx="50" cy="24" r="13" fill="${canopyColor}"/>
     ${blotchesHtml}
   </svg>`;
+  if(size<60){
+    return `<div class="treeStage" style="width:${size}px;">${svgMarkup}</div>`;
+  }
+  const auraDiameter = Math.round(size*3.4);
+  const auraBlur = Math.round(size*0.42);
+  return `<div class="treeStage treeStageBig" style="width:${size}px;--glow:${glowColor};--aura-size:${auraDiameter}px;--aura-blur:${auraBlur}px;">
+    <div class="treeAura"></div>
+    ${svgMarkup}
+  </div>`;
+}
+function renderBalanceBar(meter, delta){
+  const pct = Math.max(0,Math.min(100,Math.round(meter)));
+  const deltaHtml = (delta!==undefined && delta!==null && delta!==0) ? ` <span style="color:${delta>0?'var(--ok)':'#ff9d8f'};">${delta>0?'+':''}${delta}</span>` : '';
+  return `<div class="balanceBar"><div class="balanceTrack"><div class="balanceMarker" style="left:${pct}%;"></div></div><span class="balanceReadout">${pct}%${deltaHtml}</span></div>`;
 }
 
 /* ================= РУНИ ================= */
@@ -270,6 +293,7 @@ function setPhaseBadge(label, tone){
 }
 function screen(html){ document.getElementById('screen').innerHTML = html; }
 function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function hostName(){ if(!pub) return ''; const h = pub.players.find(p=>p.id===pub.hostPlayerId); return h? esc(h.name) : 'організатор'; }
 
 /* ================= СТАРТОВІ ЕКРАНИ (без сервера) ================= */
 function renderStart(){
@@ -302,6 +326,10 @@ function renderRules(){
       3. <b>Розкриття</b> — Дерево Рівноваги реагує на всі вибори разом.<br>
       4. Час від часу — <b>Суд Клятви</b>: усі голосують зі своїх пристроїв, кого вигнати.</p>
     </div>
+    ${sectionTtl('Як рахується Рівновага')}
+    <div class="card"><p>Рівновага — це шкала від 0% (Безлад) до 100% (Ідеал), яку видно смужкою вгорі екрана. Щоразу, коли гравець чесно віддає Слово — шкала трохи росте; коли хтось бере Слово собі — трохи падає, а якщо Жаротворці це викриють прилюдно — падає ще сильніше. Здібності Каст, предмети з Крамниці та випадкові Примхи Безладу теж можуть зсунути шкалу в той чи інший бік.</p></div>
+    ${sectionTtl('Що таке Борг Безладу')}
+    <div class="card"><p>На початку кожного раунду Борг Безладу непомітно й випадково падає на когось із гравців (невеликий шанс окремо для кожного, а іноді ще на когось — через випадкову Примху Безладу). Дізнаєшся про це лише коли почнеться твоя таємна фаза. Якщо Борг упав на тебе — цього раунду вибору немає: Слово автоматично піде тобі (нечесно), хай що ти хотів(ла) би обрати. Це завжди тягне Рівновагу до Безладу і робить тебе вразливим(ою) до викриття Жаротворцями.</p></div>
     ${sectionTtl('Жетони й Крамниця')}
     <div class="card"><p>За гру накопичуються Жетони — за них у Крамниці можна купити Удар Розбрату, Кайдани Мовчання, Наклеп або одноразовий Подих Клятви (+3 до Рівноваги).</p></div>
     ${sectionTtl('Перемога')}
@@ -323,7 +351,7 @@ function renderCreateRoom(){
   screen(`
     <h2>Створити нову кімнату</h2>
     <div class="card">
-      <p class="muted">Ти станеш хостом: отримаєш код кімнати, поділишся ним з іншими, і керуватимеш початком гри.</p>
+      <p class="muted">Отримаєш код кімнати, поділишся ним з друзями, і коли всі зберуться — почнеш гру.</p>
       <input class="textIn" id="createNameIn" placeholder="Твоє ім'я" maxlength="24">
       <button class="act primary" onclick="doCreate()">Створити кімнату</button>
     </div>
@@ -376,6 +404,7 @@ function renderLobby(){
   document.getElementById('roundLabel').textContent = 'Набір гравців';
   document.getElementById('treeStateLabel').textContent = 'Дерево Клятви спить';
   document.getElementById('treeWrap').innerHTML = renderTree(50,44);
+  document.getElementById('resBar').style.display='none';
   const isHost = priv && priv.isHost;
   const needMore = !pub.regTimerEnd && pub.players.length < 4;
   const stillNeed = Math.max(0, 4-pub.players.length);
@@ -386,10 +415,10 @@ function renderLobby(){
       <div class="roomCode">${pub.code}</div>
     </div>
     ${pub.regTimerEnd ? `<div class="card" style="text-align:center;"><span class="muted">До старту лишилось:</span> <b id="regTimerVal" style="font-family:'Cinzel',serif;color:var(--gold);font-size:20px;margin-left:6px;">${formatRegTimer()}</b></div>` : ''}
-    ${needMore ? `<div class="card" style="text-align:center;border-color:var(--gold-dim);"><b style="color:var(--gold);">Час на реєстрацію вичерпано.</b><p class="muted" style="margin:6px 0 0;">Гравців ще замало для старту — потрібно щонайменше 4, зараз ${pub.players.length} (не вистачає ${stillNeed}). Кімната лишається відкритою: поділись кодом <b style="color:var(--gold);">${pub.code}</b>, і щойно приєднається достатньо людей, ${isHost?'зможеш почати гру кнопкою нижче.':'хост зможе почати гру.'}</p></div>` : ''}
+    ${needMore ? `<div class="card" style="text-align:center;border-color:var(--gold-dim);"><b style="color:var(--gold);">Час на реєстрацію вичерпано.</b><p class="muted" style="margin:6px 0 0;">Гравців ще замало для старту — потрібно щонайменше 4, зараз ${pub.players.length} (не вистачає ${stillNeed}). Кімната лишається відкритою: поділись кодом <b style="color:var(--gold);">${pub.code}</b>, і щойно приєднається достатньо людей, ${isHost?'зможеш почати гру кнопкою нижче.':`${hostName()} зможе почати гру.`}</p></div>` : ''}
     ${sectionTtl('Хто вже тут')}
-    <div class="card">${pub.players.map(p=>`<div class="playerRow"><span class="sigilRow">${neutralRune(p.name)}<span>${esc(p.name)}${!p.connected?' <span class="muted">(офлайн)</span>':''}${p.id===pub.hostPlayerId?' <span class="muted">· хост</span>':''}</span></span>${(isHost && p.id!==priv.id)?`<button class="act small danger" onclick="removePlayer('${p.id}')">✕</button>`:''}</div>`).join('') || '<span class="muted">Ще нікого немає.</span>'}</div>
-    <p class="muted">Мінімум 4 гравці. ${isHost? 'Ти — хост цієї кімнати.' : 'Очікуємо, поки хост почне гру (або мине таймер).'}</p>
+    <div class="card">${pub.players.map(p=>`<div class="playerRow"><span class="sigilRow">${neutralRune(p.name)}<span>${esc(p.name)}${!p.connected?' <span class="muted">(офлайн)</span>':''}${p.id===pub.hostPlayerId?' <span class="muted">· почне гру</span>':''}</span></span>${(isHost && p.id!==priv.id)?`<button class="act small danger" onclick="removePlayer('${p.id}')">✕</button>`:''}</div>`).join('') || '<span class="muted">Ще нікого немає.</span>'}</div>
+    <p class="muted">Мінімум 4 гравці. ${isHost? 'Гру почнеш ти, коли будете готові.' : `Очікуємо, поки ${hostName()} почне гру (або мине таймер).`}</p>
     ${isHost? `<button class="act primary" ${pub.players.length<4?'disabled':''} onclick="socket.emit('hostStartNow')">${pub.players.length<4?`Потрібно ще ${stillNeed} гравців`:`Почати зараз (${pub.players.length} гравців)`}</button>` : ''}
   `);
 }
@@ -401,6 +430,8 @@ function renderPublic(){
   document.getElementById('roundLabel').textContent = `Раунд ${pub.round} / ${pub.maxRounds}`;
   document.getElementById('treeStateLabel').textContent = pub.meter>=80?'Клятва сяє' : pub.meter<=35?'Безлад наближається' : 'Крихка рівновага';
   document.getElementById('treeWrap').innerHTML = renderTree(pub.meter,44);
+  document.getElementById('resBar').style.display='flex';
+  document.getElementById('resBar').innerHTML = renderBalanceBar(pub.meter);
   const isHost = priv && priv.isHost;
   screen(`
     <div class="card" style="text-align:center;">${renderTree(pub.meter,90)}</div>
@@ -409,8 +440,8 @@ function renderPublic(){
     ${ornDivider()}
     ${sectionTtl('Хто в грі')}
     <div class="card">${pub.players.map(p=>`<div class="playerRow"><span class="sigilRow">${neutralRune(p.name)}<span>${esc(p.name)} ${!p.alive?'<span class="muted">(вигнаний(а))</span>':''}</span></span></div>`).join('')}</div>
-    <p class="muted">Обговорюйте вголос на своєму дзвінку — домовляйтесь, обіцяйте, підозрюйте. Коли всі готові, хост перейде до таємної фази.</p>
-    ${isHost? `<button class="act primary" onclick="socket.emit('proceedToSecret')">Перейти до таємної фази →</button>` : `<p class="muted" style="text-align:center;">Очікуємо, поки хост перейде далі…</p>`}
+    <p class="muted">Обговорюйте вголос на своєму дзвінку — домовляйтесь, обіцяйте, підозрюйте. Коли всі готові, ${hostName()} перейде до таємної фази.</p>
+    ${isHost? `<button class="act primary" onclick="socket.emit('proceedToSecret')">Перейти до таємної фази →</button>` : `<p class="muted" style="text-align:center;">Очікуємо, поки ${hostName()} перейде далі…</p>`}
   `);
 }
 
@@ -443,6 +474,8 @@ function renderSecret(){
   document.getElementById('roundLabel').textContent = `Раунд ${pub.round} / ${pub.maxRounds}`;
   document.getElementById('treeStateLabel').textContent = pub.meter>=80?'Клятва сяє' : pub.meter<=35?'Безлад наближається' : 'Крихка рівновага';
   document.getElementById('treeWrap').innerHTML = renderTree(pub.meter,44);
+  document.getElementById('resBar').style.display='flex';
+  document.getElementById('resBar').innerHTML = renderBalanceBar(pub.meter);
   if(shopOpen){ renderShop(); return; }
   const done = priv.myAction;
   const others = priv.othersAlive;
@@ -467,9 +500,10 @@ function renderSecret(){
       ${priv.abilityDisabled?'<p class="muted" style="color:var(--danger);">Цього раунду здібність недоступна (Примха Безладу).</p>':''}
     </div>
     ${priv.casteAllies.length? `<p class="muted">Твої Сородичі (${priv.casteName}): ${priv.casteAllies.map(n=>`<span class="allyChip">${esc(n)}</span>`).join('')}</p>` : ''}
-    ${priv.isDebt? `<p class="muted" style="color:var(--danger);">Борг Безладу: цього разу тебе змушують узяти Слово собі, хай що ти оберешь нижче.</p>`:''}
     <h3>Що ти РЕАЛЬНО зробиш цього разу (тільки ти це бачиш)?</h3>
-    <select class="formIn" id="realSel"><option value="give">Віддати чесно</option><option value="take">Взяти собі</option></select>
+    ${priv.isDebt
+      ? `<div class="card" style="border-color:var(--danger);background:rgba(224,85,79,.08);"><p style="margin:0;">🔒 <b>Борг Безладу</b> впав на тебе цього раунду: Безлад забирає твою волю, і Слово автоматично йде тобі. Вибору немає — так діє випадкове прокляття гри.</p></div><input type="hidden" id="realSel" value="take">`
+      : `<select class="formIn" id="realSel"><option value="give">Віддати чесно</option><option value="take">Взяти собі</option></select>`}
     ${!priv.abilityDisabled ? `<h3>Застосувати «${priv.ability}» на кого?</h3><select class="formIn" id="abilitySel"><option value="">— не використовувати —</option>${others.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('')}</select>` : ''}
     ${priv.inventory.shield>0? `<h3>🛡 Щит Клятви (маєш ${priv.inventory.shield})</h3><select class="formIn" id="shieldSel"><option value="no">Не використовувати</option><option value="yes">Використати на себе цього раунду</option></select>`:''}
     ${priv.inventory.strike>0? `<h3>⚔ Удар Розбрату (маєш ${priv.inventory.strike})</h3><select class="formIn" id="strikeSel"><option value="">Не використовувати</option>${others.map(o=>`<option value="${o.id}">Спалити Слово: ${esc(o.name)}</option>`).join('')}</select>`:''}
@@ -502,20 +536,25 @@ function renderReveal(){
   setPhaseBadge('Розкриття', hasExposure ? 'fire' : (pub.lastDelta<0 ? 'danger' : 'public'));
   document.getElementById('roundLabel').textContent = `Раунд ${pub.round} / ${pub.maxRounds}`;
   document.getElementById('treeWrap').innerHTML = renderTree(pub.meter,44);
+  document.getElementById('resBar').style.display='flex';
+  document.getElementById('resBar').innerHTML = renderBalanceBar(pub.meter);
   document.getElementById('treeStateLabel').textContent = pub.meter>=80?'Клятва сяє' : pub.meter<=35?'Безлад наближається' : 'Крихка рівновага';
   const isHost = priv && priv.isHost;
   const deltaTone = pub.lastDelta>0?'color:var(--ok);background:rgba(95,207,130,.12);border:1px solid rgba(95,207,130,.4);':(pub.lastDelta<0?'color:#ff9d8f;background:rgba(224,85,79,.12);border:1px solid rgba(224,85,79,.4);':'color:var(--text-dim);background:var(--panel3);border:1px solid var(--border);');
   screen(`
     <div class="card" style="text-align:center;">${renderTree(pub.meter,90)}</div>
     ${witnessQuoteHtml(pub.witness.reveal||'')}
-    <div class="card"><div style="text-align:center;"><span class="tokenPill" style="${deltaTone}">${pub.lastDelta>=0?'+':''}${pub.lastDelta} → зараз ${pub.meter}/100</span></div></div>
+    <div class="card" style="text-align:center;">
+      ${renderBalanceBar(pub.meter, pub.lastDelta)}
+      <p style="margin:10px 0 0;"><span class="tokenPill" style="${deltaTone}">${pub.lastDelta>0?`Рівновага зросла на ${pub.lastDelta}`:pub.lastDelta<0?`Рівновага впала на ${Math.abs(pub.lastDelta)}`:'Рівновага не змінилася'}</span></p>
+    </div>
     ${priv.myResults.length? `<div class="card">${priv.myResults.map(r=>`<p class="muted">${esc(r)}</p>`).join('')}</div>` : ''}
     ${priv.struckThisRound? `<div class="card"><p class="exposedRow">⚔ Твоє Слово цього раунду спалено Ударом Розбрату — не зараховано нічого.</p></div>` : ''}
     ${priv.exposedThisRound? `<div class="card exposedCard"><p class="exposedRow">Тебе викрили — Жаротворці розпалили правду: ти взяв(ла) Слово собі! −1 Жетон.</p></div>`:''}
     ${pub.struckThisRound.length? `<div class="card">${pub.struckThisRound.map(id=>`<div class="exposedRow">⚔ ${esc(pub.players.find(p=>p.id===id).name)} — Слово спалено Ударом Розбрату.</div>`).join('')}</div>`:''}
     ${hasExposure? `<div class="card exposedCard"><p class="witnessQuote" style="margin:0 0 8px;">${esc(pub.witness.exposure||'')}</p>${pub.exposedThisRound.map(id=>`<div class="exposedRow"><svg class="flameIcon" viewBox="0 0 24 24"><path d="M12 2.5c1.2 4-2.6 5.3-2.6 9.2a2.6 2.6 0 0 0 5.2 0c0-1.7-.9-2.6-.9-4.3 1.8 1 2.8 3.4 2.8 5.2A4.5 4.5 0 0 1 7.5 12.6c0-4.4 2.7-5.7 4.5-10.1z" fill="var(--fire)"/></svg>${esc(pub.players.find(p=>p.id===id).name)} узяв(ла) Слово собі — Жаротворці розкрили це прилюдно!</div>`).join('')}</div>` : ''}
     ${pub.debtPlayers.length? `<p class="muted">Борг Безладу торкнувся: ${pub.debtPlayers.map(id=>esc(pub.players.find(p=>p.id===id).name)).join(', ')}.</p>` : ''}
-    ${isHost? `<button class="act primary" onclick="socket.emit('proceedAfterReveal')">Далі →</button>` : `<p class="muted" style="text-align:center;">Хост переходить далі…</p>`}
+    ${isHost? `<button class="act primary" onclick="socket.emit('proceedAfterReveal')">Далі →</button>` : `<p class="muted" style="text-align:center;">${hostName()} переходить далі…</p>`}
   `);
 }
 
@@ -524,6 +563,8 @@ function renderInvite(){
   setPhaseBadge('Тінь кличе','danger');
   document.getElementById('roundLabel').textContent = 'Хтось приймає рішення';
   document.getElementById('treeWrap').innerHTML = renderTree(pub.meter,44);
+  document.getElementById('resBar').style.display='flex';
+  document.getElementById('resBar').innerHTML = renderBalanceBar(pub.meter);
   const isHost = priv && priv.isHost;
   if(priv.myInviteOffer){
     screen(`
@@ -583,6 +624,8 @@ function renderVote(){
   setPhaseBadge('Суд Клятви','danger');
   document.getElementById('roundLabel').textContent = 'Голосування';
   document.getElementById('treeWrap').innerHTML = renderTree(pub.meter,44);
+  document.getElementById('resBar').style.display='flex';
+  document.getElementById('resBar').innerHTML = renderBalanceBar(pub.meter);
   const alive = pub.players.filter(p=>p.alive);
   const myVote = pub.votesCast ? pub.votesCast[priv.id] : null;
   screen(`
@@ -602,6 +645,8 @@ function renderVoteResult(){
   setPhaseBadge('Вирок винесено','danger');
   document.getElementById('roundLabel').textContent = `Раунд ${pub.round} / ${pub.maxRounds}`;
   document.getElementById('treeWrap').innerHTML = renderTree(pub.meter,44);
+  document.getElementById('resBar').style.display='flex';
+  document.getElementById('resBar').innerHTML = renderBalanceBar(pub.meter);
   const isHost = priv && priv.isHost;
   const target = pub.voteResult ? pub.players.find(p=>p.id===pub.voteResult) : null;
   screen(`
@@ -610,7 +655,7 @@ function renderVoteResult(){
     <div class="card" style="text-align:center;">
       ${target ? `<p><span class="sigilRow" style="justify-content:center;">${neutralRune(target.name,30)}<b>${esc(target.name)}</b></span> вигнан${target.name.endsWith('а')?'а':'ий'} з кола.</p><p class="muted">${pub.voteWasUnbound? 'Це був Розв\'язаний — Рівновага зміцніла.' : 'Це був Вірний — Рівновага похитнулась.'}</p>` : `<p class="muted">Голоси розділились порівну — цього разу нікого не вигнано.</p>`}
     </div>
-    ${isHost? `<button class="act primary" onclick="socket.emit('proceedAfterVoteResult')">Далі →</button>` : `<p class="muted" style="text-align:center;">Хост переходить далі…</p>`}
+    ${isHost? `<button class="act primary" onclick="socket.emit('proceedAfterVoteResult')">Далі →</button>` : `<p class="muted" style="text-align:center;">${hostName()} переходить далі…</p>`}
   `);
 }
 
@@ -619,6 +664,8 @@ function renderEnd(){
   setPhaseBadge(pub.result==='faithful'?'Клятва відновлена':'Безлад переміг', pub.result==='faithful'?'public':'danger');
   document.getElementById('roundLabel').textContent = 'Гру завершено';
   document.getElementById('treeWrap').innerHTML = renderTree(pub.result==='faithful'?100:0,44);
+  document.getElementById('resBar').style.display='flex';
+  document.getElementById('resBar').innerHTML = renderBalanceBar(pub.result==='faithful'?100:0);
   const isHost = priv && priv.isHost;
   screen(`
     <div class="card" style="text-align:center;">${renderTree(pub.result==='faithful'?100:0,110)}</div>
@@ -626,7 +673,7 @@ function renderEnd(){
     ${witnessQuoteHtml(witnessSample(pub.result==='faithful'?'endRestored':'endChaos'))}
     ${sectionTtl('Хто ким був')}
     <div class="card">${pub.players.map(p=>`<div class="playerRow"><span class="sigilRow">${fullSigilPublicEnd(p)}<span>${esc(p.name)} ${!p.alive?'<span class="muted">(вигнаний(а))</span>':''}</span></span></div>`).join('')}</div>
-    ${isHost? `<button class="act primary" onclick="socket.emit('newGameSameRoom')">Нова гра в цій кімнаті</button>` : `<p class="muted" style="text-align:center;">Хост може почати нову гру в цій кімнаті.</p>`}
+    ${isHost? `<button class="act primary" onclick="socket.emit('newGameSameRoom')">Нова гра в цій кімнаті</button>` : `<p class="muted" style="text-align:center;">${hostName()} може почати нову гру в цій кімнаті.</p>`}
     <button class="act" onclick="leaveRoom()">Вийти з кімнати</button>
   `);
 }
@@ -636,6 +683,7 @@ function fullSigilPublicEnd(p){ return priv && p.id===priv.id ? fullSigil(p.name
 /* ================= ГОЛОВНИЙ РЕНДЕР ================= */
 function render(){
   checkVibeTriggers();
+  if(pub && pub.phase!=='secret') shopOpen = false;
   if(!session || !pub){
     document.getElementById('topBar').style.display='none';
     if(uiScreen==='start') return renderStart();
