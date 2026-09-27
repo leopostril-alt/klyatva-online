@@ -19,7 +19,7 @@ app.use(express.static(__dirname + '/public'));
 // ==================== КОНСТАНТИ ПРАВИЛ (перенесено 1:1 з прототипу) ====================
 const CASTES = [
   { key: 'air', name: 'Вітрокрилі', ability: 'Підслухати', abilityDesc: 'Обери гравця — побачиш, яке рішення він зараз готує (може ще передумати).' },
-  { key: 'fire', name: 'Жаротворці', ability: 'Розпалити', abilityDesc: 'Обери гравця — якщо він цього раунду насправді взяв Слово собі, вогонь це висвітлить усім, і його штраф подвоїться.' },
+  { key: 'fire', name: 'Жаротворці', ability: 'Розпалити', abilityDesc: 'Обери гравця — якщо він цього раунду насправді проголосував за Безлад, вогонь це висвітлить усім, і його штраф подвоїться.' },
   { key: 'earth', name: "Кам'яни", ability: 'Прикрити', abilityDesc: "Обери гравця (можна себе) — якщо його спробують Підслухати Вітрокрилі, вони отримають хибну інформацію." },
   { key: 'water', name: 'Плинні', ability: 'Розмити', abilityDesc: 'Обери гравця (можна себе) — якщо його цього раунду намагаються Розпалити, спроба провалюється повністю.' },
 ];
@@ -33,7 +33,7 @@ const SHOP_ITEMS = [
   { key: 'shield', name: 'Щит Клятви', icon: '🛡', cost: 4, desc: 'Захищає тебе цього раунду від Удару Розбрату, від Розпалити і від Наклепу.' },
   { key: 'strike', name: 'Удар Розбрату', icon: '⚔', cost: 5, desc: 'Обери гравця — його Слово цього раунду згорає дощенту: не рахується ні як чесне, ні як власне.' },
   { key: 'silence', name: 'Кайдани Мовчання', icon: '🔗', cost: 6, desc: 'Обери гравця — цього раунду він не може застосувати здібність своєї Касти.' },
-  { key: 'slander', name: 'Наклеп', icon: '🕸', cost: 5, desc: 'Обери гравця — цього розкриття всі побачать його викритим (наче він узяв Слово собі), хай що він насправді зробив. Ніхто не дізнається, що це був Наклеп, а не Розпалити.' },
+  { key: 'slander', name: 'Наклеп', icon: '🕸', cost: 5, desc: 'Обери гравця — цього розкриття всі побачать його викритим (наче він проголосував за Безлад), хай що він насправді зробив. Ніхто не дізнається, що це був Наклеп, а не Розпалити.' },
   { key: 'breath', name: 'Подих Клятви', icon: '🕊', cost: 8, maxOwned: 1, desc: 'Раз за партію: вклади частку себе просто в Рівновагу (+3 до лічильника миттєво). Але Клятва чує лише одне щире Слово за раунд — якщо цього ж раунду Подих вкладе ще хтось, його внесок буде лише символічним.' },
 ];
 const CAUSE_PHRASES = [
@@ -75,6 +75,7 @@ const rooms = {}; // code -> room state
 const REG_TIMER_MS = 3 * 60 * 1000;
 
 function makeRoomCode() {
+  const letters = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯ'.split('').filter(() => true);
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // латиниця — легше диктувати по телефону
   let code;
   do { code = Array.from({ length: 4 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join(''); }
@@ -236,9 +237,9 @@ function resolveRound(room) {
       if (!room.privateResults[pl.id]) room.privateResults[pl.id] = [];
       if (coveredBy[a.abilityTarget]) {
         const fake = Math.random() < 0.5 ? 'give' : 'take';
-        room.privateResults[pl.id].push(`Ти підслухав ${targetName}: нібито обирає «${fake === 'give' ? 'віддати чесно' : 'взяти собі'}» — але Кам'яни могли тебе обманути.`);
+        room.privateResults[pl.id].push(`Ти підслухав ${targetName}: нібито голосує «${fake === 'give' ? 'за Гармонію' : 'за Безлад'}» — але Кам'яни могли тебе обманути.`);
       } else if (targetAct) {
-        room.privateResults[pl.id].push(`Ти підслухав ${targetName}: насправді обирає «${targetAct.realChoice === 'give' ? 'віддати чесно' : 'взяти собі'}».`);
+        room.privateResults[pl.id].push(`Ти підслухав ${targetName}: насправді голосує «${targetAct.realChoice === 'give' ? 'за Гармонію' : 'за Безлад'}».`);
       }
     }
   });
@@ -247,13 +248,15 @@ function resolveRound(room) {
     if (a && a.abilityTarget && casteOf(pl).key === 'fire' && !silencedIds.has(pl.id)) {
       const targetId = a.abilityTarget;
       const targetAct = room.roundActions[targetId];
-      if (!targetAct) return;
+      if (!room.privateResults[pl.id]) room.privateResults[pl.id] = [];
+      if (!targetAct) { room.privateResults[pl.id].push(`Твоє Розпалити цього разу не мало ефекту.`); return; }
       const tookForSelf = targetAct.realChoice === 'take';
       if (tookForSelf && !blurredBy[targetId] && !shieldedIds.has(targetId)) {
         room.exposedThisRound.push(targetId);
-        if (!room.privateResults[pl.id]) room.privateResults[pl.id] = [];
         room.privateResults[pl.id].push(`Твоє Розпалити спрацювало: ${p(targetId).name} було викрито! +2 Жетони.`);
         pl.tokens += 2;
+      } else {
+        room.privateResults[pl.id].push(`Твоє Розпалити цього разу не мало ефекту.`);
       }
     }
   });
